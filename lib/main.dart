@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
-import 'package:epubx/epubx.dart';
+import 'dart:typed_data';
+
+import 'package:epubx/epubx.dart' as epub;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
-import 'utils.dart';
 
 void main() => runApp(OKToast(
         child: MaterialApp(
@@ -13,14 +15,15 @@ void main() => runApp(OKToast(
 class MyApp extends StatefulWidget {
   final PlatformFile platformFile;
   const MyApp({Key key, this.platformFile}) : super(key: key);
-
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
   PlatformFile platformFile;
-  EpubBook epubBook;
+  epub.EpubBook epubBook;
+  String coverStr = "";
+
   TextEditingController textEditingController;
   TextEditingController textEditingControllerReg;
 
@@ -38,7 +41,7 @@ class _MyAppState extends State<MyApp> {
       FilePickerResult result = await FilePicker.platform
           .pickFiles(withData: false, dialogTitle: "选择txt或者epub导入亦搜");
       if (result == null) {
-        Utils.toast("未选择文件");
+        //Utils.toast("未选择文件");
         if (platformFile == null) {
           Navigator.of(context).pop();
           return;
@@ -50,11 +53,13 @@ class _MyAppState extends State<MyApp> {
 
     if (platformFile.extension == "epub") {
       try {
-        epubBook = await EpubReader.readBook(
+        epubBook = await epub.EpubReader.readBook(
             File(platformFile.path).readAsBytesSync());
         textEditingController.text = epubBook.Title;
+        coverStr = base64Encode(epubBook.CoverImage.getBytes());
+        // print(coverStr);
       } catch (e) {
-        Utils.toast("$e");
+        //Utils.toast("$e");
       }
     }
 
@@ -86,8 +91,23 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
               Expanded(
-                child:,
+                child: coverStr != ""
+                    ? Base64Image(base64string: coverStr)
+                    : const Image(
+                        image: AssetImage('assets/ba/懒儿1.jpg'),
+                      ),
               )
             ])));
+  }
+}
+
+class Base64Image extends StatelessWidget {
+  final String base64string;
+
+  const Base64Image({Key key, this.base64string}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    Uint8List bytes = base64Decode(base64string);
+    return Image.memory(bytes);
   }
 }
