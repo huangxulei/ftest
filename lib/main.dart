@@ -1,13 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:epubx/epubx.dart' as epub;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
+import 'package:image/image.dart' as image;
 
-void main() => runApp(OKToast(
+import 'utils.dart';
+
+void main() => runApp(const OKToast(
         child: MaterialApp(
       home: MyApp(),
     )));
@@ -22,8 +23,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   PlatformFile platformFile;
   epub.EpubBook epubBook;
-  String coverStr = "";
-
+  var cover, author, chapters;
   TextEditingController textEditingController;
   TextEditingController textEditingControllerReg;
 
@@ -38,8 +38,7 @@ class _MyAppState extends State<MyApp> {
 
   init() async {
     if (platformFile == null) {
-      FilePickerResult result = await FilePicker.platform
-          .pickFiles(withData: false, dialogTitle: "选择txt或者epub导入亦搜");
+      FilePickerResult result = await FilePicker.platform.pickFiles(withData: false, dialogTitle: "选择txt或者epub导入亦搜");
       if (result == null) {
         //Utils.toast("未选择文件");
         if (platformFile == null) {
@@ -53,13 +52,13 @@ class _MyAppState extends State<MyApp> {
 
     if (platformFile.extension == "epub") {
       try {
-        epubBook = await epub.EpubReader.readBook(
-            File(platformFile.path).readAsBytesSync());
+        epubBook = await epub.EpubReader.readBook(File(platformFile.path).readAsBytesSync());
         textEditingController.text = epubBook.Title;
-        coverStr = base64Encode(epubBook.CoverImage.getBytes());
-        // print(coverStr);
+        cover = epubBook.CoverImage;
+        author = epubBook.Author;
+        chapters = epubBook.Chapters;
       } catch (e) {
-        //Utils.toast("$e");
+        Utils.toast("$e");
       }
     }
 
@@ -73,8 +72,7 @@ class _MyAppState extends State<MyApp> {
             appBar: AppBar(
               title: Text("导入本地txt或epub"),
             ),
-            body:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
@@ -90,24 +88,48 @@ class _MyAppState extends State<MyApp> {
                   ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [Text('封面'), Expanded(child: cover == null ? Container(child: Text("没有封面")) : Image.memory(Uint8List.fromList(image.encodePng(cover)), width: 200, height: 200))],
+                ),
+              ),
+              //   Expanded(
+              //       child: Card(
+              //           child: ListView.builder(
+              //               padding: const EdgeInsets.all(8.0),
+              //               itemExtent: 26,
+              //               itemCount: chapters?.length,
+              //               itemBuilder: (context, index) {
+              //                 var curr = chapters[index];
+              //                 var flag = curr.SubChapters.length > 0 ? "有${curr.SubChapters.length}" : "没有";
+              //                 return SizedBox(
+              //                   height: 50,
+              //                   child: Column(
+              //                     children: [Text("${curr?.Title.toString()} ${flag} ")],
+              //                   ),
+              //                 );
+              //               })))
+              // ])));
               Expanded(
-                child: coverStr != ""
-                    ? Base64Image(base64string: coverStr)
-                    : const Image(
-                        image: AssetImage('assets/ba/懒儿1.jpg'),
-                      ),
-              )
+                  child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: chapters?.length,
+                      itemBuilder: (context, index) {
+                        var curr = chapters[index];
+                        var len = curr.SubChapters.length;
+                        return Column(children: [
+                          Text("${curr?.Title.toString()}"),
+                          if (len > 0)
+                            ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: len,
+                                itemBuilder: (context, index) {
+                                  var ic = curr.SubChapters[index];
+                                  return Text("${ic?.Title.toString()}");
+                                })
+                        ]);
+                      }))
             ])));
-  }
-}
-
-class Base64Image extends StatelessWidget {
-  final String base64string;
-
-  const Base64Image({Key key, this.base64string}) : super(key: key);
-  @override
-  Widget build(BuildContext context) {
-    Uint8List bytes = base64Decode(base64string);
-    return Image.memory(bytes);
   }
 }
