@@ -24,16 +24,15 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   PlatformFile platformFile;
   epub.EpubBook epubBook;
-  String cover;
   TextEditingController textEditingController;
   TextEditingController textEditingControllerReg;
   SearchItem searchItem;
+  String cover;
 
   @override
   void initState() {
     platformFile = widget.platformFile;
     textEditingController = TextEditingController();
-    textEditingControllerReg = TextEditingController();
     init();
     super.initState();
   }
@@ -43,7 +42,7 @@ class _MyAppState extends State<MyApp> {
       FilePickerResult result = await FilePicker.platform
           .pickFiles(withData: false, dialogTitle: "选择txt或者epub导入亦搜");
       if (result == null) {
-        //Utils.toast("未选择文件");
+        Utils.toast("未选择文件");
         if (platformFile == null) {
           Navigator.of(context).pop();
           return;
@@ -59,11 +58,12 @@ class _MyAppState extends State<MyApp> {
             File(platformFile.path).readAsBytesSync());
         textEditingController.text = epubBook.Title;
         cover = base64Encode(image.encodePng(epubBook.CoverImage));
-        searchItem = SearchItem(
-            name: epubBook.Title,
-            cover: cover,
-            author: epubBook.Author,
-            chapters: epubBook.Chapters);
+
+        // searchItem = SearchItem(
+        //     cover: cover,
+        //     name: epubBook.Title,
+        //     author: epubBook.Author,
+        //     chapters: epubBook.Chapters);
       } catch (e) {
         Utils.toast("$e");
       }
@@ -82,10 +82,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Widget _item(epub.EpubChapter chapter) {
-    var len = chapter.SubChapters.length;
+    var len = chapter?.SubChapters?.length;
     return ExpansionTile(
         title: Text(
-          chapter.Title,
+          chapter?.Title,
           style: TextStyle(color: Colors.black54, fontSize: 20),
         ),
         children: (len > 0)
@@ -98,12 +98,16 @@ class _MyAppState extends State<MyApp> {
     return FractionallySizedBox(
       widthFactor: 1,
       child: Container(
-        alignment: Alignment.center,
-        height: 50,
-        margin: EdgeInsets.only(bottom: 3),
-        decoration: BoxDecoration(color: Colors.lightBlueAccent),
-        child: Text(sub.Title),
-      ),
+          color: Colors.black12,
+          alignment: Alignment.centerLeft,
+          height: 40,
+          margin: EdgeInsets.only(bottom: 1),
+          //decoration: BoxDecoration(color: Colors.lightBlueAccent),
+          child: Padding(
+              padding: EdgeInsets.only(
+                left: 15,
+              ),
+              child: Text(sub?.Title))),
     );
   }
 
@@ -121,6 +125,9 @@ class _MyAppState extends State<MyApp> {
                 child: Row(
                   children: [
                     Text('书名'),
+                    SizedBox(
+                      width: 10,
+                    ),
                     Expanded(
                         child: TextField(
                       controller: textEditingController,
@@ -132,54 +139,43 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
               Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
                     SizedBox(
                       width: 20,
                     ),
-                    searchItem?.cover == null
-                        ? Container(child: Text("没有封面"))
-                        : Image.memory(
-                            base64Decode(searchItem?.cover),
-                            width: 100,
-                          ),
+                    searchItem != null
+                        ? Image.memory(base64Decode(cover), width: 180)
+                        : Container(child: Text("没有封面")),
                     SizedBox(
                       width: 20,
                     ),
                     Container(
-                        child: Column(children: [
-                      SizedBox(
-                        height: 20,
-                      ),
-                      Text(
-                        searchItem?.name != null ? searchItem?.name : "无题",
-                        style: TextStyle(color: Colors.black54, fontSize: 20),
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Icon(Icons.person),
-                          Text(
-                            searchItem?.author != null
-                                ? searchItem?.author
-                                : "无名",
-                          )
-                        ],
-                      )
-                    ]))
-                  ],
-                ),
-              ),
+                        child: Column(
+                      children: [
+                        SizedBox(
+                          height: 20,
+                        ),
+                        Text(
+                          epubBook?.Title,
+                          style: TextStyle(color: Colors.black54, fontSize: 20),
+                        ),
+                        SizedBox(
+                          height: 10,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Icon(Icons.person),
+                            Text(epubBook?.Author)
+                          ],
+                        )
+                      ],
+                    ))
+                  ])),
               Expanded(
-                child: ListView(
-                  children: (searchItem?.chapters != null)
-                      ? _buildList(searchItem?.chapters)
-                      : [],
-                ),
+                child: ListView(children: _buildList(searchItem?.chapters)),
               )
             ])));
   }
@@ -187,8 +183,15 @@ class _MyAppState extends State<MyApp> {
 
 class SearchItem {
   String cover;
-  String name = "无名";
-  String author = "佚名";
+  String name;
+  String author;
   List<epub.EpubChapter> chapters;
-  SearchItem({this.cover, this.name, this.author, this.chapters});
+  SearchItem({this.cover, this.name, this.author, this.chapters}) {
+    if (name == null) {
+      name = "无题";
+    }
+    if (author == null) {
+      name = "无名";
+    }
+  }
 }
